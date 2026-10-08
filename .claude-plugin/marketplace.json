@@ -1,0 +1,5 @@
+{
+  "name": "local-mods",
+  "owner": { "name": "fbonde" },
+  "plugins": [{ "name": "context-bar", "source": "./" }]
+}
