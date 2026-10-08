@@ -1,7 +1,7 @@
 import { expect, test } from 'claude-code/testing'
 import type { SessionContextBreakdown } from 'claude-code'
 
-import { formatTokens, layoutBar } from '../hooks/register'
+import { formatCost, formatTokens, layoutBar } from '../hooks/register'
 
 const BREAKDOWN: SessionContextBreakdown = {
   categories: [
@@ -49,6 +49,12 @@ test('formats tokens like /context', () => {
   expect(formatTokens(1_000_000)).toBe('1M')
 })
 
+test('formats cost in dollars', () => {
+  expect(formatCost(0)).toBe('$0.00')
+  expect(formatCost(1.234)).toBe('$1.23')
+  expect(formatCost(12.5)).toBe('$12.50')
+})
+
 test('bar fills exactly the width and skips deferred rows', () => {
   const runs = layoutBar(
     {
@@ -61,6 +67,7 @@ test('bar fills exactly the width and skips deferred rows', () => {
       maxTokens: 1_000_000,
       percentage: 19,
       autoCompactThreshold: 950_000,
+      costUsd: null,
     },
     80,
   )
@@ -75,6 +82,7 @@ test('/context-bar toggles the band', async ($, on) => {
       startedAt: 0,
       context: { window: 1_000_000, tokens: 212_000, percent: 21, breakdown: BREAKDOWN },
       rateLimits: [],
+      cost: { usd: 1.234 },
     },
   }))
   // Stands in for the engine's own band: an empty Box keyed so the hidden case can be told apart.
@@ -92,6 +100,7 @@ test('/context-bar toggles the band', async ($, on) => {
     expect(await shown.find({ type: 'Text', text: /compacts at 950k/ })).toBeDefined()
     expect(await shown.find({ type: 'Text', text: /messages 186k/ })).toBeDefined()
     expect(await shown.find({ type: 'Text', text: /mcp tools/ })).toBeUndefined()
+    expect(await shown.find({ type: 'Text', text: /\$1\.23/ })).toBeDefined()
     await shown.unmount()
   }
 

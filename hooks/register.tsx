@@ -15,7 +15,7 @@ const CELL_CHAR: Record<ContextBarCategory['kind'], string> = {
 
 // 'summary' estimates locally; 'full' would send a token-count request per tool and memory file on every refresh.
 async function refresh($: EngineInterface): Promise<void> {
-  const { context } = await $.session.usage({ breakdown: 'summary' })
+  const { context, cost } = await $.session.usage({ breakdown: 'summary' })
   const breakdown = context.breakdown
   if (!breakdown) {
     return
@@ -37,6 +37,7 @@ async function refresh($: EngineInterface): Promise<void> {
       breakdown.isAutoCompactEnabled && breakdown.autoCompactThreshold !== undefined
         ? breakdown.autoCompactThreshold
         : null,
+    costUsd: cost?.usd ?? null,
   }
   await update($, snapshot, () => next)
 }
@@ -62,6 +63,11 @@ export function formatTokens(tokens: number): string {
     return `${trimZero((tokens / 1000).toFixed(1))}k`
   }
   return `${tokens}`
+}
+
+// The engine's cost ledger is in US dollars only; there is no account currency to convert to.
+export function formatCost(usd: number): string {
+  return `$${usd.toFixed(2)}`
 }
 
 function trimZero(text: string): string {
@@ -201,6 +207,7 @@ export const register: Register = on => {
               {' '}
               {Math.round(s.percentage)}%{' '}
             </Text>
+            {s.costUsd !== null && <Text bold> {formatCost(s.costUsd)}</Text>}
           </Text>
         </Box>
         <Box>
