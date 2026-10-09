@@ -2,6 +2,8 @@
 
 A Claude Code mod that draws your context window as a stacked bar above the prompt, one colour per `/context` category, so you can see usage without running `/context`.
 
+![context-bar above the prompt in a Claude Code session](screenshot.png)
+
 ```
 ◆ context                    212k of 1M · compacts at 950k  21%  $1.23
 ████▉███████████████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░│░░▒▒▒
@@ -30,6 +32,8 @@ Mods are an early-access Claude Code feature; this was built on Claude Code 2.1.
 ## Use
 
 `/context-bar` hides or shows the bar for the current session.
+
+The `[-]` at the right of the header is Claude Code's own control for hiding the bar; the plugin doesn't draw it.
 
 ## Update
 
