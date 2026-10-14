@@ -1,7 +1,7 @@
 import { expect, test } from 'claude-code/testing'
 import type { SessionContextBreakdown } from 'claude-code'
 
-import { formatCost, formatTokens, layoutBar } from '../hooks/register'
+import { formatCost, formatReset, formatTokens, layoutBar } from '../hooks/register'
 
 const BREAKDOWN: SessionContextBreakdown = {
   categories: [
@@ -55,6 +55,13 @@ test('formats cost in dollars', () => {
   expect(formatCost(12.5)).toBe('$12.50')
 })
 
+// Built from local date parts, so the expectations hold in any time zone the tests run in.
+test('formats reset times in local time', () => {
+  expect(formatReset(new Date(2026, 9, 14, 19, 39).getTime(), false)).toBe('19:39')
+  expect(formatReset(new Date(2026, 9, 15, 7, 5).getTime(), false)).toBe('07:05')
+  expect(formatReset(new Date(2026, 9, 17, 14, 59).getTime(), true)).toBe('Sat 14:59')
+})
+
 test('bar fills exactly the width and skips deferred rows', () => {
   const runs = layoutBar(
     {
@@ -68,6 +75,8 @@ test('bar fills exactly the width and skips deferred rows', () => {
       percentage: 19,
       autoCompactThreshold: 950_000,
       costUsd: null,
+      fiveHour: null,
+      week: null,
     },
     80,
   )
@@ -81,7 +90,11 @@ test('/context-bar toggles the band', async ($, on) => {
     value: {
       startedAt: 0,
       context: { window: 1_000_000, tokens: 212_000, percent: 21, breakdown: BREAKDOWN },
-      rateLimits: [],
+      rateLimits: [
+        { kind: 'five_hour', percentUsed: 23.5, resetsAt: new Date(2026, 9, 14, 19, 39).toISOString() },
+        { kind: 'seven_day', percentUsed: 41, resetsAt: new Date(2026, 9, 17, 14, 59).toISOString() },
+        { kind: 'spend_limit', percentUsed: 7 },
+      ],
       cost: { usd: 1.234 },
     },
   }))
@@ -101,6 +114,11 @@ test('/context-bar toggles the band', async ($, on) => {
     expect(await shown.find({ type: 'Text', text: /messages 186k/ })).toBeDefined()
     expect(await shown.find({ type: 'Text', text: /mcp tools/ })).toBeUndefined()
     expect(await shown.find({ type: 'Text', text: /\$1\.23/ })).toBeDefined()
+    expect(await shown.find({ type: 'Text', text: /^24%$/ })).toBeDefined()
+    expect(await shown.find({ type: 'Text', text: /^41%$/ })).toBeDefined()
+    expect(await shown.find({ type: 'Text', text: / ↻ 19:39$/ })).toBeDefined()
+    expect(await shown.find({ type: 'Text', text: / ↻ Sat 14:59$/ })).toBeDefined()
+    expect(await shown.find({ type: 'Text', text: /^7%$/ })).toBeUndefined()
     await shown.unmount()
   }
 
