@@ -239,14 +239,14 @@ export const register: Register = on => {
               <Text>
                 <Text dimColor> · 5h </Text>
                 <Text color={percentColor(s.fiveHour.percentUsed)}>{`${Math.round(s.fiveHour.percentUsed)}%`}</Text>
-                {s.fiveHour.resetsAt !== null && <Text dimColor> ↻{formatReset(s.fiveHour.resetsAt, false)}</Text>}
+                {s.fiveHour.resetsAt !== null && <Text dimColor> ↻ {formatReset(s.fiveHour.resetsAt, false)}</Text>}
               </Text>
             )}
             {s.week !== null && (
               <Text>
                 <Text dimColor> · week </Text>
                 <Text color={percentColor(s.week.percentUsed)}>{`${Math.round(s.week.percentUsed)}%`}</Text>
-                {s.week.resetsAt !== null && <Text dimColor> ↻{formatReset(s.week.resetsAt, true)}</Text>}
+                {s.week.resetsAt !== null && <Text dimColor> ↻ {formatReset(s.week.resetsAt, true)}</Text>}
               </Text>
             )}
             {s.costUsd !== null && <Text bold> {formatCost(s.costUsd)}</Text>}

@@ -5,7 +5,7 @@ A Claude Code mod that draws your context window as a stacked bar above the prom
 ![context-bar above the prompt in a Claude Code session](screenshot.png)
 
 ```
-◆ context  212k of 1M · compacts at 950k  21%  · 5h 5% ↻19:39 · week 37% ↻Sat 14:59 $0.92
+◆ context  212k of 1M · compacts at 950k  21%  · 5h 5% ↻ 19:39 · week 37% ↻ Sat 14:59 $0.92
 ████▉███████████████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░│░░▒▒▒
 ▌ system prompt 3.4k 0.3%   ▌ messages 186k 19%   ▌ skills 2.2k 0.2%
 ```

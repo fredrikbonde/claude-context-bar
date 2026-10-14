@@ -116,8 +116,8 @@ test('/context-bar toggles the band', async ($, on) => {
     expect(await shown.find({ type: 'Text', text: /\$1\.23/ })).toBeDefined()
     expect(await shown.find({ type: 'Text', text: /^24%$/ })).toBeDefined()
     expect(await shown.find({ type: 'Text', text: /^41%$/ })).toBeDefined()
-    expect(await shown.find({ type: 'Text', text: / ↻19:39$/ })).toBeDefined()
-    expect(await shown.find({ type: 'Text', text: / ↻Sat 14:59$/ })).toBeDefined()
+    expect(await shown.find({ type: 'Text', text: / ↻ 19:39$/ })).toBeDefined()
+    expect(await shown.find({ type: 'Text', text: / ↻ Sat 14:59$/ })).toBeDefined()
     expect(await shown.find({ type: 'Text', text: /^7%$/ })).toBeUndefined()
     await shown.unmount()
   }
