@@ -5,6 +5,12 @@ export type ContextBarCategory = {
   kind: 'used' | 'free' | 'buffer'
 }
 
+export type UsageWindow = {
+  percentUsed: number
+  // Epoch milliseconds; null when the response did not say when the window resets.
+  resetsAt: number | null
+}
+
 export type ContextBarSnapshot = {
   categories: ContextBarCategory[]
   totalTokens: number
@@ -13,6 +19,9 @@ export type ContextBarSnapshot = {
   autoCompactThreshold: number | null
   // Null where the host keeps no cost ledger, so the bar shows nothing rather than $0.00.
   costUsd: number | null
+  // The plan's usage windows as /usage shows them; null off a subscription or before the first API response reports one.
+  fiveHour: UsageWindow | null
+  week: UsageWindow | null
 }
 
 declare module 'claude-code' {

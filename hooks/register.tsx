@@ -1,7 +1,7 @@
 import { atom, read, update } from 'claude-code'
-import type { EngineInterface, Register } from 'claude-code'
+import type { EngineInterface, Register, SessionRateLimit } from 'claude-code'
 
-import type { ContextBarCategory, ContextBarSnapshot } from '../types'
+import type { ContextBarCategory, ContextBarSnapshot, UsageWindow } from '../types'
 
 const COMMAND = 'context-bar'
 const isShown = atom({ plugin: 'context-bar', key: 'isShown' } as const, true)
@@ -15,7 +15,7 @@ const CELL_CHAR: Record<ContextBarCategory['kind'], string> = {
 
 // 'summary' estimates locally; 'full' would send a token-count request per tool and memory file on every refresh.
 async function refresh($: EngineInterface): Promise<void> {
-  const { context, cost } = await $.session.usage({ breakdown: 'summary' })
+  const { context, cost, rateLimits } = await $.session.usage({ breakdown: 'summary' })
   const breakdown = context.breakdown
   if (!breakdown) {
     return
@@ -38,8 +38,26 @@ async function refresh($: EngineInterface): Promise<void> {
         ? breakdown.autoCompactThreshold
         : null,
     costUsd: cost?.usd ?? null,
+    fiveHour: usageWindow($, rateLimits, 'five_hour'),
+    week: usageWindow($, rateLimits, 'seven_day'),
   }
   await update($, snapshot, () => next)
+}
+
+function usageWindow($: EngineInterface, limits: SessionRateLimit[], kind: string): UsageWindow | null {
+  const limit = limits.find(l => l.kind === kind)
+  if (!limit) {
+    return null
+  }
+  if (limit.resetsAt === undefined) {
+    return { percentUsed: limit.percentUsed, resetsAt: null }
+  }
+  const resetsAt = Date.parse(limit.resetsAt)
+  if (Number.isNaN(resetsAt)) {
+    $.ui.log(`context-bar: ${kind} resetsAt is not a timestamp: ${limit.resetsAt}`)
+    return { percentUsed: limit.percentUsed, resetsAt: null }
+  }
+  return { percentUsed: limit.percentUsed, resetsAt }
 }
 
 // Background refreshes run after the engine's own work: a failed measurement must not fail the tool call, turn or
@@ -68,6 +86,16 @@ export function formatTokens(tokens: number): string {
 // The engine's cost ledger is in US dollars only; there is no account currency to convert to.
 export function formatCost(usd: number): string {
   return `$${usd.toFixed(2)}`
+}
+
+const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+
+// Local wall-clock time rather than a countdown: the band only redraws on refresh, so "in 2h13m" would go stale
+// while the session sits idle, and a clock time stays true.
+export function formatReset(resetsAt: number, withWeekday: boolean): string {
+  const at = new Date(resetsAt)
+  const time = `${String(at.getHours()).padStart(2, '0')}:${String(at.getMinutes()).padStart(2, '0')}`
+  return withWeekday ? `${WEEKDAYS[at.getDay()]} ${time}` : time
 }
 
 function trimZero(text: string): string {
@@ -207,6 +235,20 @@ export const register: Register = on => {
               {' '}
               {Math.round(s.percentage)}%{' '}
             </Text>
+            {s.fiveHour !== null && (
+              <Text>
+                <Text dimColor> · 5h </Text>
+                <Text color={percentColor(s.fiveHour.percentUsed)}>{`${Math.round(s.fiveHour.percentUsed)}%`}</Text>
+                {s.fiveHour.resetsAt !== null && <Text dimColor> ↻{formatReset(s.fiveHour.resetsAt, false)}</Text>}
+              </Text>
+            )}
+            {s.week !== null && (
+              <Text>
+                <Text dimColor> · week </Text>
+                <Text color={percentColor(s.week.percentUsed)}>{`${Math.round(s.week.percentUsed)}%`}</Text>
+                {s.week.resetsAt !== null && <Text dimColor> ↻{formatReset(s.week.resetsAt, true)}</Text>}
+              </Text>
+            )}
             {s.costUsd !== null && <Text bold> {formatCost(s.costUsd)}</Text>}
           </Text>
         </Box>
