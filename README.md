@@ -13,7 +13,7 @@ A Claude Code mod that draws your context window as a stacked bar above the prom
 - Coloured runs: the categories using the window, in `/context`'s theme colours
 - `░` free space, `▒` autocompact buffer, `│` where auto-compaction kicks in
 - The percentage turns yellow at 50% and red at 80%
-- `5h` and `week`: how much of your plan's current 5-hour session and weekly limit you have used, the same two figures `/usage` shows, each followed by `↻` and the local time it resets (the weekly one with its day). Each percentage turns yellow at 50% and red at 80%. They only appear on a Claude subscription, after the first response of the session reports them
+- `5h` and `week`: how much of your plan's current 5-hour session and weekly limit you have used, the same two figures `/usage` shows, each followed by `↻` and the local time it resets (the weekly one with its day). Each percentage turns yellow at 50% and red at 80%. Claude Code reports them after the first response of the session, and only when the account has these limits; until then, or when it doesn't report one, it shows `?`
 - The session's cost so far, as `/cost` totals it, at the far right. Claude Code only reports cost in US dollars, so it is always shown in `$`
 
 It refreshes at session start, after each tool call, after each turn and after compaction, using the local `summary` estimate (no token-count API requests), so figures can differ slightly from `/context`.

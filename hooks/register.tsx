@@ -235,20 +235,27 @@ export const register: Register = on => {
               {' '}
               {Math.round(s.percentage)}%{' '}
             </Text>
-            {s.fiveHour !== null && (
-              <Text>
-                <Text dimColor> · 5h </Text>
+            {/* Always drawn, so a session without limits reads as "not reported" rather than as an older version. */}
+            <Text>
+              <Text dimColor> · 5h </Text>
+              {s.fiveHour === null && <Text dimColor>?</Text>}
+              {s.fiveHour !== null && (
                 <Text color={percentColor(s.fiveHour.percentUsed)}>{`${Math.round(s.fiveHour.percentUsed)}%`}</Text>
-                {s.fiveHour.resetsAt !== null && <Text dimColor> ↻ {formatReset(s.fiveHour.resetsAt, false)}</Text>}
-              </Text>
-            )}
-            {s.week !== null && (
-              <Text>
-                <Text dimColor> · week </Text>
+              )}
+              {s.fiveHour !== null && s.fiveHour.resetsAt !== null && (
+                <Text dimColor> ↻ {formatReset(s.fiveHour.resetsAt, false)}</Text>
+              )}
+            </Text>
+            <Text>
+              <Text dimColor> · week </Text>
+              {s.week === null && <Text dimColor>?</Text>}
+              {s.week !== null && (
                 <Text color={percentColor(s.week.percentUsed)}>{`${Math.round(s.week.percentUsed)}%`}</Text>
-                {s.week.resetsAt !== null && <Text dimColor> ↻ {formatReset(s.week.resetsAt, true)}</Text>}
-              </Text>
-            )}
+              )}
+              {s.week !== null && s.week.resetsAt !== null && (
+                <Text dimColor> ↻ {formatReset(s.week.resetsAt, true)}</Text>
+              )}
+            </Text>
             {s.costUsd !== null && <Text bold> {formatCost(s.costUsd)}</Text>}
           </Text>
         </Box>
