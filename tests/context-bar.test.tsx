@@ -1,7 +1,37 @@
 import { expect, test } from 'claude-code/testing'
 import type { SessionContextBreakdown } from 'claude-code'
 
-import { formatCost, formatReset, formatTokens, layoutBar } from '../hooks/register'
+import {
+  formatCost,
+  formatDuration,
+  formatReset,
+  formatTokens,
+  layoutBar,
+  projectedPercent,
+  sparkline,
+  topCategory,
+  turnStats,
+  windowColor,
+} from '../hooks/register'
+import type { ContextBarSnapshot } from '../types'
+
+const SNAPSHOT: ContextBarSnapshot = {
+  categories: [
+    { name: 'System prompt', tokens: 3_400, color: 'promptBorder', kind: 'used' },
+    { name: 'Messages', tokens: 186_000, color: 'permission', kind: 'used' },
+    { name: 'Free space', tokens: 810_600, color: 'inactive', kind: 'free' },
+  ],
+  totalTokens: 200_000,
+  maxTokens: 1_000_000,
+  percentage: 20,
+  autoCompactThreshold: 950_000,
+  costUsd: 1,
+  fiveHour: null,
+  week: null,
+  model: 'opus-5-5',
+  startedAt: 0,
+  cacheHitPercent: null,
+}
 
 const BREAKDOWN: SessionContextBreakdown = {
   categories: [
@@ -77,6 +107,9 @@ test('bar fills exactly the width and skips deferred rows', () => {
       costUsd: null,
       fiveHour: null,
       week: null,
+      model: 'opus-5-5',
+      startedAt: 0,
+      cacheHitPercent: null,
     },
     80,
   )
@@ -119,8 +152,19 @@ test('/context-bar toggles the band', async ($, on) => {
     expect(await shown.find({ type: 'Text', text: / ↻ 19:39$/ })).toBeDefined()
     expect(await shown.find({ type: 'Text', text: / ↻ Sat 14:59$/ })).toBeDefined()
     expect(await shown.find({ type: 'Text', text: /^7%$/ })).toBeUndefined()
+    expect(await shown.find({ type: 'Text', text: /738k to compact/ })).toBeDefined()
+    expect(await shown.find({ type: 'Text', text: /^opus-5-5$/ })).toBeDefined()
     await shown.unmount()
   }
+
+  const compact = await $.command.run({ ...RUN, args: 'compact' })
+  expect(compact.text).toBe('Context bar compact.')
+  const short = await $.ui.mount({ plugin: 'context-bar', surface: 'terminal', component: 'AbovePrompt', props: BAND_PROPS })
+  expect(await short.find({ type: 'Text', text: /212k/ })).toBeDefined()
+  expect(await short.find({ type: 'Text', text: /to compact/ })).toBeUndefined()
+  expect(await short.find({ type: 'Text', text: /messages 186k/ })).toBeUndefined()
+  await short.unmount()
+  expect((await $.command.run({ ...RUN, args: 'compact' })).text).toBe('Context bar expanded.')
 
   const off = await $.command.run(RUN)
   expect(off.text).toBe('Context bar hidden.')
@@ -131,4 +175,45 @@ test('/context-bar toggles the band', async ($, on) => {
 
   const on2 = await $.command.run(RUN)
   expect(on2.text).toBe('Context bar shown.')
+})
+
+test('turn stats: growth, headroom, turns left and cost per turn', () => {
+  const stats = turnStats(SNAPSHOT, [
+    { tokens: 100_000, costUsd: 0.5 },
+    { tokens: 150_000, costUsd: 0.7 },
+    { tokens: 200_000, costUsd: 1 },
+  ])
+  expect(stats.lastGrowth).toBe(50_000)
+  expect(stats.headroom).toBe(750_000)
+  expect(stats.turnsLeft).toBe(15)
+  expect(Math.round((stats.lastCost ?? 0) * 100)).toBe(30)
+  expect(turnStats(SNAPSHOT, [{ tokens: 200_000, costUsd: 1 }]).turnsLeft).toBeNull()
+})
+
+test('sparkline scales to the compaction point', () => {
+  expect(sparkline([{ tokens: 0, costUsd: null }, { tokens: 950_000, costUsd: null }], SNAPSHOT)).toBe('▁█')
+})
+
+test('window pace projects usage at reset', () => {
+  const now = new Date(2026, 9, 14, 12, 0).getTime()
+  const hour = 60 * 60 * 1000
+  // 2.5h into a 5h window at 60% used: on course for 120%.
+  expect(Math.round(projectedPercent({ percentUsed: 60, resetsAt: now + 2.5 * hour }, 5 * hour, now) ?? 0)).toBe(120)
+  // Too early in the window to say anything.
+  expect(projectedPercent({ percentUsed: 5, resetsAt: now + 4.9 * hour }, 5 * hour, now)).toBeNull()
+  expect(projectedPercent({ percentUsed: 5, resetsAt: null }, 5 * hour, now)).toBeNull()
+  expect(windowColor(30, 120)).toBe('error')
+  expect(windowColor(30, 60)).toBe('success')
+  expect(windowColor(30, null)).toBe('success')
+})
+
+test('formats duration and finds a dominant category', () => {
+  expect(formatDuration(20_000)).toBe('<1m')
+  expect(formatDuration(42 * 60_000)).toBe('42m')
+  expect(formatDuration(125 * 60_000)).toBe('2h 05m')
+  expect(topCategory(SNAPSHOT)?.name).toBe('messages')
+  expect(topCategory({ ...SNAPSHOT, categories: [
+    { name: 'A', tokens: 10, color: 'x', kind: 'used' },
+    { name: 'B', tokens: 10, color: 'y', kind: 'used' },
+  ] })).toBeNull()
 })
