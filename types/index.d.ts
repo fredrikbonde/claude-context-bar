@@ -36,6 +36,18 @@ export type TurnSample = {
   costUsd: number | null
 }
 
+// Where a usage window and the session's cost stood when the dollars-left estimate started measuring.
+export type Baseline = {
+  percent: number
+  costUsd: number
+  resetsAt: number | null
+}
+
+export type Baselines = {
+  fiveHour: Baseline | null
+  week: Baseline | null
+}
+
 declare module 'claude-code' {
   interface PluginState {
     'context-bar': {
@@ -43,6 +55,7 @@ declare module 'claude-code' {
       isCompact: boolean
       snapshot: ContextBarSnapshot | null
       turns: TurnSample[]
+      baselines: Baselines
       compactions: number
       toolCalls: number
     }

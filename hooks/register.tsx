@@ -2,13 +2,14 @@ import { atom, read, update } from 'claude-code'
 import type { ReactNode } from 'react'
 import type { EngineInterface, Register, SessionRateLimit } from 'claude-code'
 
-import type { ContextBarCategory, ContextBarSnapshot, TurnSample, UsageWindow } from '../types'
+import type { Baseline, Baselines, ContextBarCategory, ContextBarSnapshot, TurnSample, UsageWindow } from '../types'
 
 const COMMAND = 'context-bar'
 const isShown = atom({ plugin: 'context-bar', key: 'isShown' } as const, true)
 const isCompact = atom({ plugin: 'context-bar', key: 'isCompact' } as const, false)
 const snapshot = atom({ plugin: 'context-bar', key: 'snapshot' } as const, null)
 const turns = atom({ plugin: 'context-bar', key: 'turns' } as const, [])
+const baselines = atom({ plugin: 'context-bar', key: 'baselines' } as const, { fiveHour: null, week: null })
 const compactions = atom({ plugin: 'context-bar', key: 'compactions' } as const, 0)
 const toolCalls = atom({ plugin: 'context-bar', key: 'toolCalls' } as const, 0)
 
@@ -24,6 +25,10 @@ const TOP_CATEGORY_SHARE = 60
 const MIN_ELAPSED_SHARE = 0.05
 // Projected usage at reset is only worth a glance once it nears the limit.
 const PROJECTION_SHOWN_FROM = 80
+// Dollars per percent is noise until the window has moved a few points since measuring began.
+const MIN_BUDGET_PERCENT = 2
+// resetsAt can wobble by a moment between responses; a real reset moves it by hours.
+const RESET_JITTER_MS = 60_000
 
 const CELL_CHAR: Record<ContextBarCategory['kind'], string> = {
   used: '█',
@@ -63,6 +68,36 @@ async function refresh($: EngineInterface): Promise<void> {
     cacheHitPercent: cacheHit(breakdown.apiUsage),
   }
   await update($, snapshot, () => next)
+  await update($, baselines, prev => ({
+    fiveHour: nextBaseline(next.fiveHour, next.costUsd, prev.fiveHour),
+    week: nextBaseline(next.week, next.costUsd, prev.week),
+  }))
+}
+
+// Keeps the first reading of a window, and starts over when the window resets (its percentage drops or its reset time moves).
+export function nextBaseline(w: UsageWindow | null, costUsd: number | null, prev: Baseline | null): Baseline | null {
+  if (w === null || costUsd === null) {
+    return null
+  }
+  const reset =
+    prev === null ||
+    w.percentUsed < prev.percent ||
+    (w.resetsAt !== null && prev.resetsAt !== null && Math.abs(w.resetsAt - prev.resetsAt) > RESET_JITTER_MS)
+  return reset ? { percent: w.percentUsed, costUsd, resetsAt: w.resetsAt } : prev
+}
+
+// Rough dollars left in a window: what this session has spent per percent of the window it used, times the percent
+// remaining. Other sessions on the same plan also draw on the window, so this is an estimate. Null until there is a trend.
+export function dollarsLeft(w: UsageWindow, base: Baseline | null, costUsd: number | null): number | null {
+  if (base === null || costUsd === null) {
+    return null
+  }
+  const used = w.percentUsed - base.percent
+  const spent = costUsd - base.costUsd
+  if (used < MIN_BUDGET_PERCENT || spent <= 0) {
+    return null
+  }
+  return (spent / used) * Math.max(0, 100 - w.percentUsed)
 }
 
 type ApiUsage = { input_tokens: number; cache_creation_input_tokens: number; cache_read_input_tokens: number }
@@ -365,6 +400,9 @@ export const register: Register = on => {
     const toolCount = await read($, toolCalls)
     const fiveHourPace = s.fiveHour && projectedPercent(s.fiveHour, FIVE_HOUR_MS, now)
     const weekPace = s.week && projectedPercent(s.week, WEEK_MS, now)
+    const base: Baselines = await read($, baselines)
+    const fiveHourLeft = s.fiveHour && dollarsLeft(s.fiveHour, base.fiveHour, s.costUsd)
+    const weekLeft = s.week && dollarsLeft(s.week, base.week, s.costUsd)
     const target = s.autoCompactThreshold !== null ? 'compact' : 'full'
     const statParts: ReactNode[] = []
     if (samples.length >= 3) {
@@ -381,6 +419,12 @@ export const register: Register = on => {
     )
     if (stats.lastCost !== null) {
       statParts.push(<Text>{formatCost(stats.lastCost)} last turn</Text>)
+    }
+    if (fiveHourLeft !== null && fiveHourLeft !== undefined) {
+      statParts.push(<Text>~{formatCost(fiveHourLeft)} left in 5h</Text>)
+    }
+    if (weekLeft !== null && weekLeft !== undefined) {
+      statParts.push(<Text>~{formatCost(weekLeft)} left in week</Text>)
     }
     if (s.cacheHitPercent !== null) {
       statParts.push(<Text>cache {Math.round(s.cacheHitPercent)}%</Text>)

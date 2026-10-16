@@ -7,6 +7,7 @@ A Claude Code mod that draws your context window as a stacked bar above the prom
 ```
 ◆ context  212k of 1M · compacts at 950k  21%  · 5h 5% ↻ 19:39 · week 37% ↻ Sat 14:59 $0.92
 ████▉███████████████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░│░░▒▒▒
++4.2k last turn · 738k to compact (~18 turns) · $0.12 last turn · cache 94% · opus-5-5 · 12m · 3 tools
 ▌ system prompt 3.4k 0.3%   ▌ messages 186k 19%   ▌ skills 2.2k 0.2%
 ```
 
@@ -23,6 +24,7 @@ A Claude Code mod that draws your context window as a stacked bar above the prom
   - the model, how long the session has run, how many times it has compacted and how many tool calls it has made
   - `messages 72% of used`, in yellow, when one category makes up 60% or more of the used context
 - Pace for the `5h` and `week` limits: once 5% of a window has passed, usage is projected to its reset. If you're on course to hit the limit the percentage turns red even when it is still low, and a projection of 80% or more is shown as `→120%`
+- `~$16.00 left in 5h` and `~$80.00 left in week`: a rough estimate of the dollars left in each limit. Claude Code reports the limits only as percentages, so this divides what the session has spent by how far the limit has moved since the bar started measuring, then multiplies by the percentage remaining. It appears once the limit has moved 2 points and the session has spent something, starts over when the limit resets, and is only an estimate: other sessions on the same plan draw on the same limit
 - The session's cost so far, as `/cost` totals it, at the far right. Claude Code only reports cost in US dollars, so it is always shown in `$`
 
 It refreshes at session start, after each tool call, after each turn and after compaction, using the local `summary` estimate (no token-count API requests), so figures can differ slightly from `/context`.

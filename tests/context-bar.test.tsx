@@ -2,11 +2,13 @@ import { expect, test } from 'claude-code/testing'
 import type { SessionContextBreakdown } from 'claude-code'
 
 import {
+  dollarsLeft,
   formatCost,
   formatDuration,
   formatReset,
   formatTokens,
   layoutBar,
+  nextBaseline,
   projectedPercent,
   sparkline,
   topCategory,
@@ -205,6 +207,29 @@ test('window pace projects usage at reset', () => {
   expect(windowColor(30, 120)).toBe('error')
   expect(windowColor(30, 60)).toBe('success')
   expect(windowColor(30, null)).toBe('success')
+})
+
+test('estimates dollars left in a window from what the session spent', () => {
+  const resetsAt = new Date(2026, 9, 14, 19, 39).getTime()
+  const base = { percent: 10, costUsd: 0, resetsAt }
+  // $2 spent moved the window 10 points, so the remaining 80 points are about $16.
+  expect(dollarsLeft({ percentUsed: 20, resetsAt }, base, 2)).toBe(16)
+  // Too little movement, no spend, or no baseline: no estimate.
+  expect(dollarsLeft({ percentUsed: 11, resetsAt }, base, 2)).toBeNull()
+  expect(dollarsLeft({ percentUsed: 20, resetsAt }, base, 0)).toBeNull()
+  expect(dollarsLeft({ percentUsed: 20, resetsAt }, null, 2)).toBeNull()
+  expect(dollarsLeft({ percentUsed: 20, resetsAt }, base, null)).toBeNull()
+})
+
+test('baseline is kept until the window resets', () => {
+  const resetsAt = new Date(2026, 9, 14, 19, 39).getTime()
+  const base = { percent: 10, costUsd: 0, resetsAt }
+  expect(nextBaseline({ percentUsed: 30, resetsAt: resetsAt + 1000 }, 3, base)).toBe(base)
+  expect(nextBaseline({ percentUsed: 2, resetsAt }, 3, base)).toEqual({ percent: 2, costUsd: 3, resetsAt })
+  const later = resetsAt + 5 * 60 * 60 * 1000
+  expect(nextBaseline({ percentUsed: 40, resetsAt: later }, 3, base)).toEqual({ percent: 40, costUsd: 3, resetsAt: later })
+  expect(nextBaseline({ percentUsed: 5, resetsAt }, 3, null)).toEqual({ percent: 5, costUsd: 3, resetsAt })
+  expect(nextBaseline(null, 3, base)).toBeNull()
 })
 
 test('formats duration and finds a dominant category', () => {
