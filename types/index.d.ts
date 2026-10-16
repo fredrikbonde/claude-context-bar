@@ -19,7 +19,8 @@ export type ContextBarSnapshot = {
   autoCompactThreshold: number | null
   // Null where the host keeps no cost ledger, so the bar shows nothing rather than $0.00.
   costUsd: number | null
-  // The plan's usage windows as /usage shows them; null off a subscription or before the first API response reports one.
+  // The plan's usage windows as /usage shows them; null (drawn as "?") when the account has no such limit or no API
+  // response has reported one yet.
   fiveHour: UsageWindow | null
   week: UsageWindow | null
 }

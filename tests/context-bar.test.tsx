@@ -132,3 +132,24 @@ test('/context-bar toggles the band', async ($, on) => {
   const on2 = await $.command.run(RUN)
   expect(on2.text).toBe('Context bar shown.')
 })
+
+test('shows ? for usage windows the session does not report', async ($, on) => {
+  on('session.usage', () => ({
+    value: {
+      startedAt: 0,
+      context: { window: 1_000_000, tokens: 212_000, percent: 21, breakdown: BREAKDOWN },
+      rateLimits: [],
+      cost: { usd: 1.234 },
+    },
+  }))
+  on('command.register', () => ({ value: { command: 'context-bar' } }))
+  on('session.start', (_, e) => ({ cwd: e.cwd }))
+  await $.session.start({ cwd: '.', surface: 'terminal', isInteractive: true })
+
+  const shown = await $.ui.mount({ plugin: 'context-bar', surface: 'terminal', component: 'AbovePrompt', props: BAND_PROPS })
+  expect(await shown.find({ type: 'Text', text: /^ · 5h $/ })).toBeDefined()
+  expect(await shown.find({ type: 'Text', text: /^ · week $/ })).toBeDefined()
+  expect(await shown.findAll({ type: 'Text', text: /^\?$/ })).toHaveLength(2)
+  expect(await shown.find({ type: 'Text', text: /↻/ })).toBeUndefined()
+  await shown.unmount()
+})
